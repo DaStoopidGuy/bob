@@ -10,17 +10,18 @@ Get the hell out of here c++ (middle finger emoji)
 
 in `bob.c` file:  
 ```c
+    #define BOB_STRIP_PREFIXES
     #define BOB_IMPL
     #include "bob.h"
 
     int main(int argc, char **argv) {
         printf("Bob says Hi!\n");
-        Bob_Cmd cmd = {0};
+        Cmd cmd = {0};
 
-        bob_cmd_append(&cmd, "gcc", "src/main.c", "-o", "build/main");
-        bob_cmd_run(&cmd);
+        cmd_append(&cmd, "gcc", "src/main.c", "-o", "build/main");
+        cmd_run(&cmd);
 
-        bob_cmd_destroy(&cmd);
+        cmd_destroy(&cmd);
         return 0;
     }
 ```  
