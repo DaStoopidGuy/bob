@@ -17,10 +17,11 @@
 #define sb_create bob_sb_create
 #define sb_from_parts bob_sb_from_parts
 #define sb_from_cstr bob_sb_from_cstr
+#define sb_from_sb bob_sb_from_sb
 #define sb_destroy bob_sb_destroy
 #define sb_get_cstr bob_sb_get_cstr
-#define sb_append bob_sb_append
 #define sb_append_parts bob_sb_append_parts
+#define sb_append_sb bob_sb_append_sb
 #define sb_append_cstr bob_sb_append_cstr
 #endif // BOB_STRING_BUILDER_STRIP
 
@@ -40,10 +41,11 @@ typedef struct {
 Bob_StringBuilder bob_sb_create();
 Bob_StringBuilder bob_sb_from_parts(const char *data, size_t len);
 Bob_StringBuilder bob_sb_from_cstr(const char *str);
+Bob_StringBuilder bob_sb_from_sb(Bob_StringBuilder *sb);
 void bob_sb_destroy(Bob_StringBuilder *sb);
 const char *bob_sb_get_cstr(Bob_StringBuilder *sb);
-void bob_sb_append(Bob_StringBuilder *primary, Bob_StringBuilder *secondary);
 void bob_sb_append_parts(Bob_StringBuilder *sb, const char *data, size_t len);
+void bob_sb_append_sb(Bob_StringBuilder *primary, Bob_StringBuilder *secondary);
 void bob_sb_append_cstr(Bob_StringBuilder *sb, const char* str);
 
 typedef struct {
@@ -117,14 +119,19 @@ Bob_StringBuilder bob_sb_create() {
 Bob_StringBuilder bob_sb_from_parts(const char *data, size_t len) {
     Bob_StringBuilder sb = {0};
     sb.cap = len;
-    sb.data = malloc(sb.cap);
+    sb.data = malloc(sb.cap + 1); // no null check for allocated memory
     memcpy(sb.data, data, len);
     sb.len = len;
+    sb.data[sb.len] = '\0'; // null terminate
     return sb;
 }
 
 Bob_StringBuilder bob_sb_from_cstr(const char *str) {
     return bob_sb_from_parts(str, strlen(str));
+}
+
+Bob_StringBuilder bob_sb_from_sb(Bob_StringBuilder *sb) {
+    return bob_sb_from_parts(sb->data, sb->len);
 }
 
 void bob_sb_destroy(Bob_StringBuilder *sb) {
@@ -149,15 +156,17 @@ const char *bob_sb_get_cstr(Bob_StringBuilder *sb) {
     return sb->data;
 }
 
-void bob_sb_append(Bob_StringBuilder *primary, Bob_StringBuilder *secondary) {
-    bob_sb_append_parts(primary, secondary->data, secondary->len);
-}
-
 void bob_sb_append_parts(Bob_StringBuilder *sb, const char *data, size_t len) {
     size_t required_len = sb->len + len;
-    bob_sb_realloc_if_required(sb, required_len);
+    bob_sb_realloc_if_required(sb, required_len + 1);
     memcpy(sb->data + sb->len, data, len);
     sb->len = required_len;
+    // maintain null terminator
+    sb->data[sb->len] = '\0';
+}
+
+void bob_sb_append_sb(Bob_StringBuilder *primary, Bob_StringBuilder *secondary) {
+    bob_sb_append_parts(primary, secondary->data, secondary->len);
 }
 
 void bob_sb_append_cstr(Bob_StringBuilder *sb, const char* str) {
@@ -192,20 +201,26 @@ void bob_cmd_destroy(Bob_Cmd *cmd) {
     bob_da_free(cmd);
 }
 
-void bob_cmd_run(Bob_Cmd *cmd) {
-    Bob_StringBuilder complete_cmd = bob_sb_create();
+Bob_StringBuilder bob_get_cmd_string(Bob_Cmd *cmd) {
+    Bob_StringBuilder complete_cmd = bob_sb_from_sb(&cmd->items[0]);
 
-    for (size_t i=0; i<cmd->len; i++) {
+    for (size_t i=1; i<cmd->len; i++) {
         Bob_StringBuilder *arg = &cmd->items[i];
         bob_sb_append_cstr(&complete_cmd, " ");
-        bob_sb_append(&complete_cmd, arg);
+        bob_sb_append_sb(&complete_cmd, arg);
     }
 
-    int ret = system(bob_sb_get_cstr(&complete_cmd));
+    return complete_cmd;
+}
+
+void bob_cmd_run(Bob_Cmd *cmd) {
+    Bob_StringBuilder cmd_string = bob_get_cmd_string(cmd);
+
+    int ret = system(bob_sb_get_cstr(&cmd_string));
     if (ret != 0) {
-        printf("Following command could not be run successfully:\n>   %s\n", bob_sb_get_cstr(&complete_cmd));
+        printf("Following command could not be run successfully:\n>   %s\n", bob_sb_get_cstr(&cmd_string));
     }
 
-    bob_sb_destroy(&complete_cmd);
+    bob_sb_destroy(&cmd_string);
 }
 #endif // BOB_IMPL
