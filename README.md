@@ -1,5 +1,5 @@
 # bob - the build system
-Bob is a build system writtend exclusively, for C projects.  
+Bob is a build system written exclusively, for C projects.  
 Get the hell out of here c++ (middle finger emoji)  
 
 > and yes, i do see the irony in using Make (another build system)
