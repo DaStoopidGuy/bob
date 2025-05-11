@@ -5,6 +5,32 @@
 #include <assert.h>
 #include <stdio.h>
 
+// macros for stripping prefixes
+
+#ifdef BOB_STRIP_PREFIXES
+#define BOB_STRING_BUILDER_STRIP
+#define BOB_CMD_STRIP
+#endif // BOB_STRIP_PREFIXES
+
+#ifdef BOB_STRING_BUILDER_STRIP
+#define StringBuilder Bob_StringBuilder
+#define sb_create bob_sb_create
+#define sb_from_parts bob_sb_from_parts
+#define sb_from_cstr bob_sb_from_cstr
+#define sb_destroy bob_sb_destroy
+#define sb_get_cstr bob_sb_get_cstr
+#define sb_append bob_sb_append
+#define sb_append_parts bob_sb_append_parts
+#define sb_append_cstr bob_sb_append_cstr
+#endif // BOB_STRING_BUILDER_STRIP
+
+#ifdef BOB_CMD_STRIP
+#define Cmd Bob_Cmd
+#define cmd_append bob_cmd_append
+#define cmd_destroy bob_cmd_destroy
+#define cmd_run bob_cmd_run
+#endif // BOB_CMD_STRIP
+
 typedef struct {
     char *data;
     size_t len;
