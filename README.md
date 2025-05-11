@@ -43,7 +43,7 @@ So effectively all you'll need to build your C project
 is just a C compiler  
 
 ## Todo
-- [ ] run shell commands
+- [x] run shell commands
 - [ ] strip prefix macro for individual components (like string builder, cmd, etc...)
 - [ ] strip prefix macro for all components (for usage in _build script .c_ file `bob.c`)
 - [ ] rebuild itself if the build script is changed
