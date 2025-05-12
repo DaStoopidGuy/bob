@@ -15,6 +15,7 @@ in `bob.c` file:
     #include "bob.h"
 
     int main(int argc, char **argv) {
+        rebuild_yourself(argv[0]);
         printf("Bob says Hi!\n");
         Cmd cmd = {0};
 
@@ -45,6 +46,6 @@ is just a C compiler
 
 ## Todo
 - [x] run shell commands
-- [ ] strip prefix macro for individual components (like string builder, cmd, etc...)
-- [ ] strip prefix macro for all components (for usage in _build script .c_ file `bob.c`)
-- [ ] rebuild itself if the build script is changed
+- [x] strip prefix macro for individual components (like string builder, cmd, etc...)
+- [x] strip prefix macro for all components (for usage in _build script .c_ file `bob.c`)
+- [x] rebuild itself if the build script is changed

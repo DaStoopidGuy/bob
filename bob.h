@@ -4,12 +4,14 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 // macros for stripping prefixes
 
 #ifdef BOB_STRIP_PREFIXES
 #define BOB_STRING_BUILDER_STRIP
 #define BOB_CMD_STRIP
+#define rebuild_yourself bob_rebuild_yourself
 #endif // BOB_STRIP_PREFIXES
 
 #ifdef BOB_STRING_BUILDER_STRIP
@@ -30,6 +32,7 @@
 #define cmd_append bob_cmd_append
 #define cmd_destroy bob_cmd_destroy
 #define cmd_run bob_cmd_run
+#define cmd_run_and_reset bob_cmd_run_and_reset
 #endif // BOB_CMD_STRIP
 
 typedef struct {
@@ -54,9 +57,17 @@ typedef struct {
     size_t cap;
 } Bob_Cmd;
 
-void bob_cmd_append(Bob_Cmd *cmd, ...);
+#define bob_cmd_append(cmd, ...) bob_cmd_append_many( \
+        (cmd),                                        \
+        (const char *[]){ __VA_ARGS__ },              \
+        sizeof ( (const char *[]){ __VA_ARGS__ } ) / sizeof (const char *))
+
+void bob_cmd_append_many(Bob_Cmd *cmd, const char *args[], int args_count);
 void bob_cmd_destroy(Bob_Cmd *cmd);
 void bob_cmd_run(Bob_Cmd *cmd);
+void bob_cmd_run_and_reset(Bob_Cmd *cmd);
+
+void bob_rebuild_yourself(const char *execpath);
 
 //----------------------//
 // Dynamic Array Macros //
@@ -177,21 +188,15 @@ void bob_sb_append_cstr(Bob_StringBuilder *sb, const char* str) {
 // Bob Command or Bob_Cmd //
 //------------------------//
 
-void bob_cmd_append(Bob_Cmd *cmd, ...) {
-    va_list args;
-    va_start(args, cmd);
+void bob_cmd_append_many(Bob_Cmd *cmd, const char *args[], int args_count) {
+    for (int i=0; i<args_count; i++) {
+        const char *arg = args[i];
 
-    const char *arg = va_arg(args, const char *);
-    while(arg) {
         // make string builder from argument
         // and append to cmd 'args'
         Bob_StringBuilder sb_arg = bob_sb_from_cstr(arg);
         bob_da_append(cmd, sb_arg);
-
-        // do this at the end of iteration
-        arg = va_arg(args, const char *);
     }
-    va_end(args);
 }
 
 void bob_cmd_destroy(Bob_Cmd *cmd) {
@@ -214,7 +219,10 @@ Bob_StringBuilder bob_get_cmd_string(Bob_Cmd *cmd) {
 }
 
 void bob_cmd_run(Bob_Cmd *cmd) {
+    if (cmd->len <= 0) return;
     Bob_StringBuilder cmd_string = bob_get_cmd_string(cmd);
+
+    printf("> %s\n", bob_sb_get_cstr(&cmd_string));
 
     int ret = system(bob_sb_get_cstr(&cmd_string));
     if (ret != 0) {
@@ -222,5 +230,27 @@ void bob_cmd_run(Bob_Cmd *cmd) {
     }
 
     bob_sb_destroy(&cmd_string);
+}
+
+void bob_cmd_run_and_reset(Bob_Cmd *cmd) {
+    bob_cmd_run(cmd);
+    cmd->len = 0;
+}
+
+void bob_rebuild_yourself(const char *execpath) {
+    struct stat exe_stat, src_stat;
+    stat(execpath, &exe_stat);
+    stat("bob.c", &src_stat);
+
+    if (src_stat.st_mtim.tv_sec  > exe_stat.st_mtim.tv_sec ||
+       (src_stat.st_mtim.tv_sec == exe_stat.st_mtim.tv_sec &&
+        src_stat.st_mtim.tv_nsec > exe_stat.st_mtim.tv_nsec)
+    ) {
+        // src is newer that executable
+        printf("REBUILDING BOB...\n");
+        system("gcc -o bob bob.c");
+        system("./bob");
+        exit(0);
+    }
 }
 #endif // BOB_IMPL
