@@ -15,7 +15,7 @@ in `bob.c` file:
     #include "bob.h"
 
     int main(int argc, char **argv) {
-        rebuild_yourself(argv[0]);
+        rebuild_yourself(argc, argv);
         printf("Bob says Hi!\n");
         Cmd cmd = {0};
 
