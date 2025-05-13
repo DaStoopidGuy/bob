@@ -57,17 +57,17 @@ typedef struct {
     size_t cap;
 } Bob_Cmd;
 
-#define bob_cmd_append(cmd, ...) bob_cmd_append_many( \
+#define bob_cmd_append(cmd, ...) _bob_cmd_append_many( \
         (cmd),                                        \
         (const char *[]){ __VA_ARGS__ },              \
         sizeof ( (const char *[]){ __VA_ARGS__ } ) / sizeof (const char *))
 
-void bob_cmd_append_many(Bob_Cmd *cmd, const char *args[], int args_count);
+void _bob_cmd_append_many(Bob_Cmd *cmd, const char *args[], int args_count);
 void bob_cmd_destroy(Bob_Cmd *cmd);
 void bob_cmd_run(Bob_Cmd *cmd);
 void bob_cmd_run_and_reset(Bob_Cmd *cmd);
 
-void bob_rebuild_yourself(const char *execpath);
+void bob_rebuild_yourself(int argc, char *argv[]);
 
 //----------------------//
 // Dynamic Array Macros //
@@ -188,7 +188,7 @@ void bob_sb_append_cstr(Bob_StringBuilder *sb, const char* str) {
 // Bob Command or Bob_Cmd //
 //------------------------//
 
-void bob_cmd_append_many(Bob_Cmd *cmd, const char *args[], int args_count) {
+void _bob_cmd_append_many(Bob_Cmd *cmd, const char *args[], int args_count) {
     for (int i=0; i<args_count; i++) {
         const char *arg = args[i];
 
@@ -237,9 +237,9 @@ void bob_cmd_run_and_reset(Bob_Cmd *cmd) {
     cmd->len = 0;
 }
 
-void bob_rebuild_yourself(const char *execpath) {
+void bob_rebuild_yourself(int argc, char *argv[]) {
     struct stat exe_stat, src_stat;
-    stat(execpath, &exe_stat);
+    stat(argv[0], &exe_stat);
     stat("bob.c", &src_stat);
 
     if (src_stat.st_mtim.tv_sec  > exe_stat.st_mtim.tv_sec ||
@@ -248,8 +248,22 @@ void bob_rebuild_yourself(const char *execpath) {
     ) {
         // src is newer that executable
         printf("REBUILDING BOB...\n");
-        system("gcc -o bob bob.c");
-        system("./bob");
+        Bob_Cmd cmd = {0};
+        bob_cmd_append(&cmd, "gcc", "-o", "bob", "bob.c");
+        bob_cmd_run_and_reset(&cmd);
+
+
+        bob_cmd_append(&cmd, "./bob");
+        if (argc > 1) {
+            for (int i=1; i<argc; i++) {
+                bob_cmd_append(&cmd, argv[i]);
+            }
+        }
+
+        // run new bob version
+        bob_cmd_run_and_reset(&cmd);
+
+        bob_cmd_destroy(&cmd);
         exit(0);
     }
 }
