@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 // macros for stripping prefixes
 
@@ -33,6 +34,10 @@
 #define cmd_destroy bob_cmd_destroy
 #define cmd_run bob_cmd_run
 #define cmd_run_and_reset bob_cmd_run_and_reset
+#define cmd_run_silent bob_cmd_run_silent
+#define cmd_run_and_reset_silent bob_cmd_run_and_reset_silent
+#define check_dir_exists bob_check_dir_exists
+#define check_file_exists bob_check_file_exists
 #endif // BOB_CMD_STRIP
 
 typedef struct {
@@ -64,10 +69,16 @@ typedef struct {
 
 void _bob_cmd_append_many(Bob_Cmd *cmd, const char *args[], int args_count);
 void bob_cmd_destroy(Bob_Cmd *cmd);
-void bob_cmd_run(Bob_Cmd *cmd);
-void bob_cmd_run_and_reset(Bob_Cmd *cmd);
+
+bool bob_cmd_run_silent(Bob_Cmd *cmd);
+bool bob_cmd_run_and_reset_silent(Bob_Cmd *cmd);
+bool bob_cmd_run(Bob_Cmd *cmd);
+bool bob_cmd_run_and_reset(Bob_Cmd *cmd);
 
 void bob_rebuild_yourself(int argc, char *argv[]);
+
+bool bob_check_dir_exists(const char *dirname);
+bool bob_check_file_exists(const char *filename);
 
 //----------------------//
 // Dynamic Array Macros //
@@ -218,23 +229,38 @@ Bob_StringBuilder bob_get_cmd_string(Bob_Cmd *cmd) {
     return complete_cmd;
 }
 
-void bob_cmd_run(Bob_Cmd *cmd) {
-    if (cmd->len <= 0) return;
+// returns true on success, false on failure
+bool bob_cmd_run_silent(Bob_Cmd *cmd) {
+    if (cmd->len == 0) return false;
     Bob_StringBuilder cmd_string = bob_get_cmd_string(cmd);
-
-    printf("> %s\n", bob_sb_get_cstr(&cmd_string));
 
     int ret = system(bob_sb_get_cstr(&cmd_string));
     if (ret != 0) {
         printf("Following command could not be run successfully:\n>   %s\n", bob_sb_get_cstr(&cmd_string));
+        return false;
     }
 
     bob_sb_destroy(&cmd_string);
+    return true;
 }
 
-void bob_cmd_run_and_reset(Bob_Cmd *cmd) {
-    bob_cmd_run(cmd);
+bool bob_cmd_run_and_reset_silent(Bob_Cmd *cmd) {
+    bool status = bob_cmd_run_silent(cmd);
     cmd->len = 0;
+    return status;
+}
+
+bool bob_cmd_run(Bob_Cmd *cmd) {
+    Bob_StringBuilder cmd_string = bob_get_cmd_string(cmd);
+    printf("> %s\n", bob_sb_get_cstr(&cmd_string));
+    bob_sb_destroy(&cmd_string);
+    return bob_cmd_run_silent(cmd);
+}
+
+bool bob_cmd_run_and_reset(Bob_Cmd *cmd) {
+    bool status = bob_cmd_run(cmd);
+    cmd->len = 0;
+    return status;
 }
 
 void bob_rebuild_yourself(int argc, char *argv[]) {
@@ -250,8 +276,7 @@ void bob_rebuild_yourself(int argc, char *argv[]) {
         printf("REBUILDING BOB...\n");
         Bob_Cmd cmd = {0};
         bob_cmd_append(&cmd, "gcc", "-o", "bob", "bob.c");
-        bob_cmd_run_and_reset(&cmd);
-
+        bool compiled_successfully = bob_cmd_run_and_reset_silent(&cmd);
 
         bob_cmd_append(&cmd, "./bob");
         if (argc > 1) {
@@ -261,10 +286,31 @@ void bob_rebuild_yourself(int argc, char *argv[]) {
         }
 
         // run new bob version
-        bob_cmd_run_and_reset(&cmd);
+        if (compiled_successfully)
+            bob_cmd_run_and_reset_silent(&cmd);
 
         bob_cmd_destroy(&cmd);
         exit(0);
     }
+}
+
+bool bob_check_file_exists(const char *filename) {
+    struct stat file_stat;
+    int status = stat(filename, &file_stat);
+    if (status != 0) // does not exist
+        return false;
+
+    // returns if it is a regular file
+    return S_ISREG(file_stat.st_mode);
+}
+
+bool bob_check_dir_exists(const char *dirname) {
+    struct stat dir_stat;
+    int status = stat(dirname, &dir_stat);
+    if (status != 0) // does not exist lol
+        return false;
+
+    // return if its a directory
+    return S_ISDIR(dir_stat.st_mode);
 }
 #endif // BOB_IMPL

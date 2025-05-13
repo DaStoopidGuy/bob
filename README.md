@@ -49,3 +49,6 @@ is just a C compiler
 - [x] strip prefix macro for individual components (like string builder, cmd, etc...)
 - [x] strip prefix macro for all components (for usage in _build script .c_ file `bob.c`)
 - [x] rebuild itself if the build script is changed
+- [x] functions to check if files/dirs exist
+- [ ] function to make dir
+- [ ] abstract away the specific compiler, especially in `bob_rebuild_yourself()`
